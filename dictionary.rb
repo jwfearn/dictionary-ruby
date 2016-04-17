@@ -1,16 +1,21 @@
 class LinkedListDictionary
   def initialize
-    @head = nil
+    @last = @head = nil
   end
 
   def set(k, v) # O(n)
+    changed = false
     node = get_node(k)
     if node
-      node[0] = k
       node[1] = v
+      changed = true
     else
-      @head = [k, v, @head]
+      node = [k, v, nil]
+      @head = node unless @head
+      @last[2] = node if @last
+      @last = node
     end
+    changed
   end
 
   def get(k) # O(n)
@@ -19,29 +24,39 @@ class LinkedListDictionary
     node[1]
   end
 
+  def keys
+    return to_enum(__callee__) unless block_given?
+    nodes.each { |n| yield n[1] }
+  end
+
   private
 
-  def get_node(k) # O(n)
+  def nodes
+    return to_enum(__callee__) unless block_given?
     node = @head
     while node
-      if node[0] == k
-        return node
-      else
-        node = node[2]
-      end
+      yield node
+      node = node[2]
     end
+  end
+
+  def get_node(k) # O(n)
+    nodes.find { |node| node[0] == k }
   end
 end
 
 class HashTableDictionary
   def initialize
     @buckets = []
+    @keys = []
   end
 
   def set(k, v)
     i = self.class.hash_function(k)
     bucket = @buckets[i] ||= LinkedListDictionary.new
-    bucket.set(k, v)
+    changed = bucket.set(k, v)
+    @keys << k unless changed
+    changed
   end
 
   def get(k)
@@ -49,6 +64,10 @@ class HashTableDictionary
     bucket = @buckets[i]
     raise(KeyError, k) unless bucket
     bucket.get(k)
+  end
+
+  def keys
+    @keys.each
   end
 
   def self.hash_function(k) # O(1)
